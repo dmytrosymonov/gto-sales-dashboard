@@ -12,6 +12,20 @@ app.use('/api', createProxyMiddleware({
   target: 'https://api.gto.ua',
   changeOrigin: true,
   secure: true,
+  headers: {
+    'Accept': 'application/json',
+    'User-Agent': 'GTO-Sales-Dashboard/1.0',
+  },
+  onProxyReq: (proxyReq, req) => {
+    console.log(`[Proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
+  },
+  onProxyRes: (proxyRes, req) => {
+    console.log(`[Proxy Response] ${req.url} -> ${proxyRes.statusCode}`);
+  },
+  onError: (err, req, res) => {
+    console.error(`[Proxy Error] ${req.url}:`, err.message);
+    res.status(500).json({ error: 'Proxy error', message: err.message });
+  },
 }));
 
 // Serve static files from dist

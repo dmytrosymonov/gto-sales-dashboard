@@ -1,11 +1,12 @@
-const API_KEY = '552a67bc467';
+const API_KEY_ORDERS = '552a67bc467';
+const API_KEY_CURRENCY = 'd638d071a20';
 const API_BASE = window.location.origin;
 const API_V3 = `${API_BASE}/api/v3`;
 const API_PRIVATE = `${API_BASE}/api/private/`;
 
-function buildUrl(base, path, params = {}) {
+function buildUrl(base, path, params = {}, apiKey = API_KEY_ORDERS) {
   const url = new URL(path, base.endsWith('/') ? base : base + '/');
-  url.searchParams.set('apikey', API_KEY);
+  url.searchParams.set('apikey', apiKey);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       url.searchParams.set(key, value);
@@ -107,7 +108,7 @@ export async function fetchOrderInfo(orderId) {
 }
 
 export async function fetchCurrencyRates(date) {
-  const url = buildUrl(API_V3, 'currency_rates', { date });
+  const url = buildUrl(API_V3, 'currency_rates', { date }, API_KEY_CURRENCY);
   const res = await fetch(url);
   const json = await parseJsonResponse(res, url);
   if (!res.ok) throw new Error(`Currency rates API error: ${res.status}`);
@@ -115,7 +116,7 @@ export async function fetchCurrencyRates(date) {
 }
 
 export async function fetchCurrencies() {
-  const url = buildUrl(API_V3, 'currencies', {});
+  const url = buildUrl(API_V3, 'currencies', {}, API_KEY_CURRENCY);
   const res = await fetch(url);
   const json = await parseJsonResponse(res, url);
   if (!res.ok) throw new Error(`Currencies API error: ${res.status}`);

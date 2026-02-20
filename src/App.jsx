@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { fetchOrdersReport, fetchCurrencyRates, fetchCurrencies } from './api';
-import { getDateRange, getToday, addMonths } from './utils/dateUtils';
+import { getDateRange, getToday, addMonths, daysBetween, splitDateRange } from './utils/dateUtils';
 import './App.css';
 
 const TARGET_CURRENCY = 'EUR';
@@ -144,7 +144,7 @@ function regroupData(rawData, groupBy) {
       profitPerPax: vals.pax > 0 ? (vals.sales - vals.cost) / vals.pax : 0,
       orders: vals.orders
     }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 function parseOrdersReportResponse(json, ratesMap, dateField) {
@@ -200,7 +200,7 @@ function parseOrdersReportResponse(json, ratesMap, dateField) {
         profitPerPax: vals.pax > 0 ? (vals.sales - vals.cost) / vals.pax : 0,
         orders: vals.orders
       }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => b.date.localeCompare(a.date));
     
     const totalProfit = totalSales - totalCost;
     
@@ -248,6 +248,7 @@ export default function App() {
   const [customTo, setCustomTo] = useState(getToday());
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(null);
   const [error, setError] = useState(null);
   const [totals, setTotals] = useState(null);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -350,15 +351,46 @@ export default function App() {
       }
 
       // ШАГ 3: Загружаем заказы
-      setLoadingStep('Шаг 3/3: Загрузка заказов...');
-      console.log(`Шаг 2: Загрузка заказов за период ${dateFrom} — ${dateTo}`);
+      const totalDays = daysBetween(dateFrom, dateTo);
+      let json;
       
-      const json = await fetchOrdersReport({
-        dateFrom,
-        dateTo,
-        sortBy,
-        status
-      });
+      if (totalDays > 60) {
+        // Разбиваем на части по 30 дней
+        const chunks = splitDateRange(dateFrom, dateTo, 30);
+        console.log(`Период ${totalDays} дней - разбиваем на ${chunks.length} частей`);
+        
+        let allData = [];
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          const progress = Math.round(((i + 1) / chunks.length) * 100);
+          setLoadingStep(`Шаг 3/3: Загрузка заказов (${i + 1}/${chunks.length})...`);
+          setLoadingProgress({ current: i + 1, total: chunks.length, percent: progress });
+          
+          console.log(`Загрузка части ${i + 1}/${chunks.length}: ${chunk.dateFrom} — ${chunk.dateTo}`);
+          
+          const chunkResult = await fetchOrdersReport({
+            dateFrom: chunk.dateFrom,
+            dateTo: chunk.dateTo,
+            sortBy,
+            status
+          });
+          
+          allData = allData.concat(chunkResult.data || []);
+        }
+        
+        json = { data: allData };
+        setLoadingProgress(null);
+      } else {
+        setLoadingStep('Шаг 3/3: Загрузка заказов...');
+        console.log(`Загрузка заказов за период ${dateFrom} — ${dateTo}`);
+        
+        json = await fetchOrdersReport({
+          dateFrom,
+          dateTo,
+          sortBy,
+          status
+        });
+      }
 
       if (mode === 'date_created') {
         const rows = json.data ?? json;
@@ -458,23 +490,31 @@ export default function App() {
         <div className="control-group">
           <span className="label">Период:</span>
           <div className="period-buttons">
+            {mode === 'date_created' && (
+              <button
+                className={periodType === 'today' ? 'active' : ''}
+                onClick={() => setPeriodType('today')}
+              >
+                Today
+              </button>
+            )}
             <button
               className={periodType === 'week' ? 'active' : ''}
               onClick={() => setPeriodType('week')}
             >
-              Week
+              Last 7 days
             </button>
             <button
               className={periodType === 'month' ? 'active' : ''}
               onClick={() => setPeriodType('month')}
             >
-              Month
+              Last 30 days
             </button>
             <button
               className={periodType === 'year' ? 'active' : ''}
               onClick={() => setPeriodType('year')}
             >
-              Year
+              Last year
             </button>
             <button
               className={periodType === 'custom' ? 'active' : ''}
@@ -524,7 +564,17 @@ export default function App() {
         </button>
         
         {loading && loadingStep && (
-          <div className="loading-step">{loadingStep}</div>
+          <div className="loading-step">
+            {loadingStep}
+            {loadingProgress && (
+              <div className="progress-bar-container">
+                <div 
+                  className="progress-bar" 
+                  style={{ width: `${loadingProgress.percent}%` }}
+                />
+              </div>
+            )}
+          </div>
         )}
       </section>
 

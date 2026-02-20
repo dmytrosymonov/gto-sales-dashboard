@@ -24,6 +24,28 @@ export function getDateStart(dateStr) {
   return formatDate(d);
 }
 
+export function daysBetween(dateFrom, dateTo) {
+  const from = new Date(dateFrom);
+  const to = new Date(dateTo);
+  return Math.ceil((to - from) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+export function splitDateRange(dateFrom, dateTo, chunkDays = 30) {
+  const chunks = [];
+  let currentFrom = dateFrom;
+  
+  while (currentFrom <= dateTo) {
+    const currentTo = addDays(currentFrom, chunkDays - 1);
+    chunks.push({
+      dateFrom: currentFrom,
+      dateTo: currentTo > dateTo ? dateTo : currentTo
+    });
+    currentFrom = addDays(currentTo, 1);
+  }
+  
+  return chunks;
+}
+
 /**
  * Get date range based on mode and period type
  * Both modes use same period logic (last N days including today)
@@ -38,6 +60,11 @@ export function getDateRange(mode, periodType, customFrom, customTo) {
 
   // Both modes use same presets (last N days including today)
   switch (periodType) {
+    case 'today':
+      return {
+        dateFrom: today,
+        dateTo: today
+      };
     case 'week':
       return {
         dateFrom: addDays(today, -6),

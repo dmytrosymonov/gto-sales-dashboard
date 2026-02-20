@@ -16,11 +16,16 @@ app.use('/api', createProxyMiddleware({
     'Accept': 'application/json',
     'User-Agent': 'GTO-Sales-Dashboard/1.0',
   },
+  pathRewrite: (path) => {
+    console.log(`[Proxy Path] Original: ${path}`);
+    return path;
+  },
   onProxyReq: (proxyReq, req) => {
-    console.log(`[Proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
+    console.log(`[Proxy] ${req.method} ${req.originalUrl}`);
+    console.log(`[Proxy Target] https://api.gto.ua${proxyReq.path}`);
   },
   onProxyRes: (proxyRes, req) => {
-    console.log(`[Proxy Response] ${req.url} -> ${proxyRes.statusCode}`);
+    console.log(`[Proxy Response] ${proxyRes.statusCode} for ${req.originalUrl}`);
   },
   onError: (err, req, res) => {
     console.error(`[Proxy Error] ${req.url}:`, err.message);

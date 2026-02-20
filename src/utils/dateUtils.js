@@ -26,8 +26,7 @@ export function getDateStart(dateStr) {
 
 /**
  * Get date range based on mode and period type
- * dateCreated: only historical (past) - dateTo = today
- * dateStart: uses period (Week/Month/Year/Quarter)
+ * Both modes use same period logic (last N days including today)
  */
 export function getDateRange(mode, periodType, customFrom, customTo) {
   const today = getToday();
@@ -37,41 +36,27 @@ export function getDateRange(mode, periodType, customFrom, customTo) {
     return { dateFrom: customFrom, dateTo: customTo };
   }
 
-  if (mode === 'date_created') {
-    // Historical only - never include future dates
-    const from = customFrom || addMonths(today, -12);
-    let to = customTo || today;
-    if (to > today) to = today;
-    return { dateFrom: from, dateTo: to };
-  }
-
-  // date_start mode with presets
-  const now = new Date();
+  // Both modes use same presets (last N days including today)
   switch (periodType) {
     case 'week':
       return {
-        dateFrom: addDays(now, -7),
-        dateTo: addDays(now, 7)
+        dateFrom: addDays(today, -6),
+        dateTo: today
       };
     case 'month':
       return {
-        dateFrom: addDays(now, -30),
-        dateTo: addDays(now, 30)
+        dateFrom: addDays(today, -29),
+        dateTo: today
       };
     case 'year':
       return {
-        dateFrom: addMonths(now, -12),
-        dateTo: addMonths(now, 6)
-      };
-    case 'quarter':
-      return {
-        dateFrom: addMonths(now, -4),
-        dateTo: addMonths(now, 4)
+        dateFrom: addDays(today, -364),
+        dateTo: today
       };
     default:
       return {
-        dateFrom: addDays(now, -7),
-        dateTo: addDays(now, 7)
+        dateFrom: addDays(today, -6),
+        dateTo: today
       };
   }
 }

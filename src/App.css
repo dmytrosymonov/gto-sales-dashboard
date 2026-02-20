@@ -476,3 +476,46 @@ body {
   color: var(--text);
   border-color: var(--text-muted);
 }
+
+/* Table header with grouping */
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.table-header h2 {
+  margin: 0;
+}
+
+.group-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.group-buttons button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.group-buttons button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.group-buttons button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}

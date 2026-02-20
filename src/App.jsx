@@ -101,6 +101,52 @@ function convertToEur(amount, currency, ratesMap) {
   return amount * rate;
 }
 
+function getGroupKey(dateStr, groupBy) {
+  if (!dateStr) return 'unknown';
+  const [year, month] = dateStr.split('-');
+  switch (groupBy) {
+    case 'day':
+      return dateStr;
+    case 'month':
+      return `${year}-${month}`;
+    case 'quarter': {
+      const q = Math.ceil(parseInt(month) / 3);
+      return `${year}-Q${q}`;
+    }
+    case 'year':
+      return year;
+    default:
+      return dateStr;
+  }
+}
+
+function regroupData(rawData, groupBy) {
+  const grouped = {};
+  
+  rawData.forEach((row) => {
+    const key = getGroupKey(row.date, groupBy);
+    if (!grouped[key]) {
+      grouped[key] = { pax: 0, sales: 0, cost: 0, orders: 0 };
+    }
+    grouped[key].pax += row.pax;
+    grouped[key].sales += row.sales;
+    grouped[key].cost += row.cost;
+    grouped[key].orders += row.orders;
+  });
+  
+  return Object.entries(grouped)
+    .map(([date, vals]) => ({
+      date,
+      pax: vals.pax,
+      sales: vals.sales,
+      cost: vals.cost,
+      profit: vals.sales - vals.cost,
+      profitPerPax: vals.pax > 0 ? (vals.sales - vals.cost) / vals.pax : 0,
+      orders: vals.orders
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function parseOrdersReportResponse(json, ratesMap, dateField) {
   const data = json.data ?? json;
   
@@ -206,6 +252,8 @@ export default function App() {
   const [totals, setTotals] = useState(null);
   const [ordersCount, setOrdersCount] = useState(0);
   const [byDate, setByDate] = useState([]);
+  const [rawByDate, setRawByDate] = useState([]);
+  const [groupBy, setGroupBy] = useState('day');
   const [ratesInfo, setRatesInfo] = useState(null);
 
   const handleLogin = (e) => {
@@ -223,6 +271,13 @@ export default function App() {
     sessionStorage.removeItem(AUTH_KEY);
     setIsAuthenticated(false);
     setPassword('');
+  };
+
+  const handleGroupByChange = (newGroupBy) => {
+    setGroupBy(newGroupBy);
+    if (rawByDate.length > 0) {
+      setByDate(regroupData(rawByDate, newGroupBy));
+    }
   };
 
   const loadData = useCallback(async () => {
@@ -332,7 +387,9 @@ export default function App() {
         profitPerPax: parsed.profitPerPax
       });
       setOrdersCount(parsed.ordersCount || 0);
-      setByDate(parsed.byDate || []);
+      const raw = parsed.byDate || [];
+      setRawByDate(raw);
+      setByDate(regroupData(raw, groupBy));
     } catch (err) {
       setError(err.message || 'Unknown error');
     } finally {
@@ -401,34 +458,24 @@ export default function App() {
         <div className="control-group">
           <span className="label">Период:</span>
           <div className="period-buttons">
-            {mode === 'date_start' && (
-              <>
-                <button
-                  className={periodType === 'week' ? 'active' : ''}
-                  onClick={() => setPeriodType('week')}
-                >
-                  Week
-                </button>
-                <button
-                  className={periodType === 'month' ? 'active' : ''}
-                  onClick={() => setPeriodType('month')}
-                >
-                  Month
-                </button>
-                <button
-                  className={periodType === 'year' ? 'active' : ''}
-                  onClick={() => setPeriodType('year')}
-                >
-                  Year
-                </button>
-                <button
-                  className={periodType === 'quarter' ? 'active' : ''}
-                  onClick={() => setPeriodType('quarter')}
-                >
-                  Quarter
-                </button>
-              </>
-            )}
+            <button
+              className={periodType === 'week' ? 'active' : ''}
+              onClick={() => setPeriodType('week')}
+            >
+              Week
+            </button>
+            <button
+              className={periodType === 'month' ? 'active' : ''}
+              onClick={() => setPeriodType('month')}
+            >
+              Month
+            </button>
+            <button
+              className={periodType === 'year' ? 'active' : ''}
+              onClick={() => setPeriodType('year')}
+            >
+              Year
+            </button>
             <button
               className={periodType === 'custom' ? 'active' : ''}
               onClick={() => setPeriodType('custom')}
@@ -438,7 +485,7 @@ export default function App() {
           </div>
         </div>
 
-        {(periodType === 'custom' || mode === 'date_created') && (
+        {periodType === 'custom' && (
           <div className="control-group date-range">
             <label>
               <span>От:</span>
@@ -470,7 +517,7 @@ export default function App() {
           onClick={loadData}
           disabled={
             loading ||
-            (periodType === 'custom' && mode === 'date_start' && (!customFrom || !customTo))
+            (periodType === 'custom' && (!customFrom || !customTo))
           }
         >
           {loading ? 'Загрузка…' : 'Загрузить данные'}
@@ -545,12 +592,40 @@ export default function App() {
 
       {byDate.length > 0 && (
         <section className="results">
-          <h2>По датам</h2>
+          <div className="table-header">
+            <h2>По периодам</h2>
+            <div className="group-buttons">
+              <button
+                className={groupBy === 'day' ? 'active' : ''}
+                onClick={() => handleGroupByChange('day')}
+              >
+                День
+              </button>
+              <button
+                className={groupBy === 'month' ? 'active' : ''}
+                onClick={() => handleGroupByChange('month')}
+              >
+                Месяц
+              </button>
+              <button
+                className={groupBy === 'quarter' ? 'active' : ''}
+                onClick={() => handleGroupByChange('quarter')}
+              >
+                Квартал
+              </button>
+              <button
+                className={groupBy === 'year' ? 'active' : ''}
+                onClick={() => handleGroupByChange('year')}
+              >
+                Год
+              </button>
+            </div>
+          </div>
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Дата</th>
+                  <th>Период</th>
                   <th>Заказов</th>
                   <th>PAX</th>
                   <th>Sales (EUR)</th>

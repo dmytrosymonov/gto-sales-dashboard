@@ -1,8 +1,5 @@
 const API_KEY = '552a67bc467';
-const API_BASE =
-  import.meta.env.DEV
-    ? window.location.origin
-    : 'https://api.gto.ua';
+const API_BASE = window.location.origin;
 const API_V3 = `${API_BASE}/api/v3`;
 const API_PRIVATE = `${API_BASE}/api/private/`;
 
